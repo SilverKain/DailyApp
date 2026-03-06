@@ -3,6 +3,7 @@ import { Note } from '../types';
 import { generateId } from '../utils/generateId';
 import { useAuth } from './AuthContext';
 import { subscribeToNotes, saveNote, deleteNoteById } from '../services/firestoreService';
+import { localStorageProvider } from '../services/localStorageProvider';
 
 interface NotesContextValue {
   notes: Note[];
@@ -16,12 +17,17 @@ const NotesContext = createContext<NotesContextValue | null>(null);
 
 export function NotesProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const uid = user!.uid;
+  const uid = user?.uid ?? null;
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!uid) {
+      setNotes(localStorageProvider.loadNotes());
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const unsub = subscribeToNotes(uid, (data) => {
       setNotes(data);
@@ -39,13 +45,29 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    saveNote(uid, note);
+    if (!uid) {
+      setNotes((prev) => { const next = [note, ...prev]; localStorageProvider.saveNotes(next); return next; });
+    } else {
+      saveNote(uid, note);
+    }
   };
 
-  const updateNote = (updated: Note) =>
-    saveNote(uid, { ...updated, updatedAt: new Date().toISOString() });
+  const updateNote = (updated: Note) => {
+    const withTime = { ...updated, updatedAt: new Date().toISOString() };
+    if (!uid) {
+      setNotes((prev) => { const next = prev.map((n) => n.id === updated.id ? withTime : n); localStorageProvider.saveNotes(next); return next; });
+    } else {
+      saveNote(uid, withTime);
+    }
+  };
 
-  const deleteNote = (id: string) => deleteNoteById(uid, id);
+  const deleteNote = (id: string) => {
+    if (!uid) {
+      setNotes((prev) => { const next = prev.filter((n) => n.id !== id); localStorageProvider.saveNotes(next); return next; });
+    } else {
+      deleteNoteById(uid, id);
+    }
+  };
 
   return (
     <NotesContext.Provider value={{ notes, loading, addNote, updateNote, deleteNote }}>

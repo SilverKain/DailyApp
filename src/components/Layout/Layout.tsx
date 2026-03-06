@@ -68,37 +68,44 @@ export function Layout({ children }: Props) {
     <div className={styles.app}>
       <nav className={styles.sidebar}>
         {/* User block */}
-        <div className={styles.userBlock} ref={userMenuRef}>
-          <div className={styles.userBlockInner} onClick={() => setUserMenuOpen((v) => !v)}>
-            {user?.photoURL ? (
-              <img src={user.photoURL} alt="avatar" className={styles.userAvatar} referrerPolicy="no-referrer" />
-            ) : (
-              <div className={styles.userAvatarFallback}>
-                {(user?.displayName ?? user?.email ?? '?')[0].toUpperCase()}
+        {user ? (
+          <div className={styles.userBlock} ref={userMenuRef}>
+            <div className={styles.userBlockInner} onClick={() => setUserMenuOpen((v) => !v)}>
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="avatar" className={styles.userAvatar} referrerPolicy="no-referrer" />
+              ) : (
+                <div className={styles.userAvatarFallback}>
+                  {(user.displayName ?? user.email ?? '?')[0].toUpperCase()}
+                </div>
+              )}
+              <div className={styles.userInfo}>
+                <span className={styles.userName}>
+                  {user.displayName ?? user.email?.split('@')[0] ?? 'Пользователь'}
+                </span>
+                <span className={styles.userEmail}>{user.email}</span>
               </div>
-            )}
-            <div className={styles.userInfo}>
-              <span className={styles.userName}>
-                {user?.displayName ?? user?.email?.split('@')[0] ?? 'Пользователь'}
-              </span>
-              <span className={styles.userEmail}>{user?.email}</span>
-            </div>
-            <button className={styles.logoutBtn} onClick={(e) => { e.stopPropagation(); logout(); }} title="Выйти">
-              →
-            </button>
-          </div>
-          {userMenuOpen && (
-            <div className={styles.userMenu}>
-              <div className={styles.userMenuName}>
-                {user?.displayName ?? user?.email?.split('@')[0]}
-              </div>
-              <div className={styles.userMenuEmail}>{user?.email}</div>
-              <button className={styles.userMenuLogout} onClick={logout}>
-                🚪 Выйти
+              <button className={styles.logoutBtn} onClick={(e) => { e.stopPropagation(); logout(); }} title="Выйти">
+                →
               </button>
             </div>
-          )}
-        </div>
+            {userMenuOpen && (
+              <div className={styles.userMenu}>
+                <div className={styles.userMenuName}>
+                  {user.displayName ?? user.email?.split('@')[0]}
+                </div>
+                <div className={styles.userMenuEmail}>{user.email}</div>
+                <button className={styles.userMenuLogout} onClick={logout}>
+                  🚪 Выйти
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <NavLink to="/login" className={styles.guestBlock}>
+            <span>🔑</span>
+            <span>Войти в аккаунт</span>
+          </NavLink>
+        )}
 
         {/* Logo */}
         <div className={styles.logo}>
@@ -133,13 +140,22 @@ export function Layout({ children }: Props) {
               </NavLink>
             </li>
           ))}
-          {/* Mobile logout */}
-          <li className={styles.mobileLogoutItem}>
-            <button className={styles.mobileLogoutBtn} onClick={logout} title="Выйти">
-              <span className={styles.navIcon}>🚪</span>
-              <span className={styles.navLabel}>Выйти</span>
-            </button>
-          </li>
+          {/* Mobile logout / login */}
+          {user ? (
+            <li className={styles.mobileLogoutItem}>
+              <button className={styles.mobileLogoutBtn} onClick={logout} title="Выйти">
+                <span className={styles.navIcon}>🚪</span>
+                <span className={styles.navLabel}>Выйти</span>
+              </button>
+            </li>
+          ) : (
+            <li className={styles.mobileLogoutItem}>
+              <NavLink to="/login" className={styles.mobileLogoutBtn}>
+                <span className={styles.navIcon}>🔑</span>
+                <span className={styles.navLabel}>Войти</span>
+              </NavLink>
+            </li>
+          )}
         </ul>
 
         <div className={styles.divider} />

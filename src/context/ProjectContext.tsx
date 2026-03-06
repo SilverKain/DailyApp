@@ -8,6 +8,7 @@ import {
   deleteProjectById,
   deleteProjectsByIds,
 } from '../services/firestoreService';
+import { localStorageProvider } from '../services/localStorageProvider';
 
 interface ProjectContextValue {
   projects: Project[];
@@ -22,12 +23,17 @@ const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const uid = user!.uid;
+  const uid = user?.uid ?? null;
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!uid) {
+      setProjects(localStorageProvider.loadProjects());
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const unsub = subscribeToProjects(uid, (data) => {
       setProjects(data);
@@ -44,14 +50,36 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       parentId,
       createdAt: new Date().toISOString(),
     };
-    saveProject(uid, project);
+    if (!uid) {
+      setProjects((prev) => { const next = [...prev, project]; localStorageProvider.saveProjects(next); return next; });
+    } else {
+      saveProject(uid, project);
+    }
   };
 
-  const updateProject = (updated: Project) => saveProject(uid, updated);
+  const updateProject = (updated: Project) => {
+    if (!uid) {
+      setProjects((prev) => { const next = prev.map((p) => p.id === updated.id ? updated : p); localStorageProvider.saveProjects(next); return next; });
+    } else {
+      saveProject(uid, updated);
+    }
+  };
 
-  const deleteProject = (id: string) => deleteProjectById(uid, id);
+  const deleteProject = (id: string) => {
+    if (!uid) {
+      setProjects((prev) => { const next = prev.filter((p) => p.id !== id); localStorageProvider.saveProjects(next); return next; });
+    } else {
+      deleteProjectById(uid, id);
+    }
+  };
 
-  const deleteProjects = (ids: string[]) => deleteProjectsByIds(uid, ids);
+  const deleteProjects = (ids: string[]) => {
+    if (!uid) {
+      setProjects((prev) => { const next = prev.filter((p) => !ids.includes(p.id)); localStorageProvider.saveProjects(next); return next; });
+    } else {
+      deleteProjectsByIds(uid, ids);
+    }
+  };
 
   return (
     <ProjectContext.Provider value={{ projects, loading, addProject, updateProject, deleteProject, deleteProjects }}>

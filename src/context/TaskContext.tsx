@@ -9,6 +9,7 @@ import {
   deleteTaskById,
   deleteTasksByProjectIds as fsDeleteTasksByProjectIds,
 } from '../services/firestoreService';
+import { localStorageProvider } from '../services/localStorageProvider';
 
 interface TaskContextValue {
   tasks: Task[];
@@ -26,16 +27,20 @@ const TaskContext = createContext<TaskContextValue | null>(null);
 
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const uid = user!.uid;
+  const uid = user?.uid ?? null;
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  // Track selected separately to avoid closure issues in async calls
   const selectedRef = useRef<string | null>(null);
   selectedRef.current = selectedTaskId;
 
   useEffect(() => {
+    if (!uid) {
+      setTasks(localStorageProvider.loadTasks());
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const unsub = subscribeToTasks(uid, (data) => {
       setTasks(data);
@@ -55,23 +60,47 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       links: [],
       createdAt: new Date().toISOString(),
     };
-    saveTask(uid, task);
+    if (!uid) {
+      setTasks((prev) => { const next = [task, ...prev]; localStorageProvider.saveTasks(next); return next; });
+    } else {
+      saveTask(uid, task);
+    }
   };
 
-  const updateTask = (updated: Task) => saveTask(uid, updated);
+  const updateTask = (updated: Task) => {
+    if (!uid) {
+      setTasks((prev) => { const next = prev.map((t) => t.id === updated.id ? updated : t); localStorageProvider.saveTasks(next); return next; });
+    } else {
+      saveTask(uid, updated);
+    }
+  };
 
   const deleteTask = (id: string) => {
     if (selectedRef.current === id) setSelectedTaskId(null);
-    deleteTaskById(uid, id);
+    if (!uid) {
+      setTasks((prev) => { const next = prev.filter((t) => t.id !== id); localStorageProvider.saveTasks(next); return next; });
+    } else {
+      deleteTaskById(uid, id);
+    }
   };
 
   const deleteTasksByProjectIds = (projectIds: string[]) => {
-    fsDeleteTasksByProjectIds(uid, projectIds);
+    if (!uid) {
+      setTasks((prev) => { const next = prev.filter((t) => !t.projectId || !projectIds.includes(t.projectId)); localStorageProvider.saveTasks(next); return next; });
+    } else {
+      fsDeleteTasksByProjectIds(uid, projectIds);
+    }
   };
 
   const toggleTask = (id: string) => {
     const task = tasks.find((t) => t.id === id);
-    if (task) saveTask(uid, { ...task, completed: !task.completed });
+    if (!task) return;
+    const updated = { ...task, completed: !task.completed };
+    if (!uid) {
+      setTasks((prev) => { const next = prev.map((t) => t.id === id ? updated : t); localStorageProvider.saveTasks(next); return next; });
+    } else {
+      saveTask(uid, updated);
+    }
   };
 
   return (

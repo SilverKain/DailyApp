@@ -15,7 +15,7 @@ import { AuthPage } from './pages/AuthPage/AuthPage';
 import './styles/global.css';
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) {
     return (
@@ -33,10 +33,6 @@ function AppRoutes() {
     );
   }
 
-  if (!user) {
-    return <AuthPage />;
-  }
-
   return (
     <ProjectProvider>
       <TaskProvider>
@@ -47,6 +43,7 @@ function AppRoutes() {
               <Route path="/projects/:id" element={<ProjectsPage />} />
               <Route path="/notes" element={<NotesPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/login" element={<AuthPage />} />
             </Routes>
           </Layout>
         </NotesProvider>

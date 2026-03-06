@@ -34,18 +34,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Handle redirect result on mobile
+    let unsub: (() => void) | null = null;
+
+    // Сначала проверяем результат редиректа (мобильный Google OAuth),
+    // только потом подписываемся на изменения состояния авторизации.
+    // Это предотвращает мигание на страницу входа между редиректом и onAuthStateChanged.
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) setUser(result.user);
       })
-      .catch((e) => setError(mapError(e.code)));
+      .catch((e) => setError(mapError(e.code)))
+      .finally(() => {
+        unsub = onAuthStateChanged(auth, (u) => {
+          setUser(u);
+          setLoading(false);
+        });
+      });
 
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
-    return unsub;
+    return () => {
+      if (unsub) unsub();
+    };
   }, []);
 
   const signInWithGoogle = async () => {

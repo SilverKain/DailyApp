@@ -147,6 +147,37 @@
   color: var(--text);
 }
 
+/* Mobile logout nav item — скрыт на десктопе */
+.mobileLogoutItem {
+  display: none;
+}
+
+.mobileLogoutBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  transition: background var(--transition), color var(--transition);
+}
+
+.mobileLogoutBtn:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+[data-theme="dark"] .mobileLogoutBtn:hover {
+  background: #450a0a;
+  color: #fca5a5;
+}
+
 /* User block */
 .userBlock {
   position: relative;
@@ -405,6 +436,16 @@
   .divider,
   .section {
     display: none;
+  }
+
+  .mobileLogoutItem {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  .mobileLogoutBtn {
+    padding: 8px;
+    gap: 0;
   }
 
   .themeBtn {

@@ -133,6 +133,13 @@ export function Layout({ children }: Props) {
               </NavLink>
             </li>
           ))}
+          {/* Mobile logout */}
+          <li className={styles.mobileLogoutItem}>
+            <button className={styles.mobileLogoutBtn} onClick={logout} title="Выйти">
+              <span className={styles.navIcon}>🚪</span>
+              <span className={styles.navLabel}>Выйти</span>
+            </button>
+          </li>
         </ul>
 
         <div className={styles.divider} />

@@ -1,10 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Project } from '../types';
-import { storageService } from '../services/storageService';
 import { generateId } from '../utils/generateId';
+import { useAuth } from './AuthContext';
+import {
+  subscribeToProjects,
+  saveProject,
+  deleteProjectById,
+  deleteProjectsByIds,
+} from '../services/firestoreService';
 
 interface ProjectContextValue {
   projects: Project[];
+  loading: boolean;
   addProject: (name: string, icon: string, parentId?: string | null) => void;
   updateProject: (project: Project) => void;
   deleteProject: (id: string) => void;
@@ -14,11 +21,20 @@ interface ProjectContextValue {
 const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
-  const [projects, setProjects] = useState<Project[]>(() => storageService.loadProjects());
+  const { user } = useAuth();
+  const uid = user!.uid;
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    storageService.saveProjects(projects);
-  }, [projects]);
+    setLoading(true);
+    const unsub = subscribeToProjects(uid, (data) => {
+      setProjects(data);
+      setLoading(false);
+    });
+    return unsub;
+  }, [uid]);
 
   const addProject = (name: string, icon: string, parentId: string | null = null) => {
     const project: Project = {
@@ -28,24 +44,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       parentId,
       createdAt: new Date().toISOString(),
     };
-    setProjects((prev) => [...prev, project]);
+    saveProject(uid, project);
   };
 
-  const updateProject = (updated: Project) => {
-    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-  };
+  const updateProject = (updated: Project) => saveProject(uid, updated);
 
-  const deleteProject = (id: string) => {
-    setProjects((prev) => prev.filter((p) => p.id !== id));
-  };
+  const deleteProject = (id: string) => deleteProjectById(uid, id);
 
-  const deleteProjects = (ids: string[]) => {
-    const idSet = new Set(ids);
-    setProjects((prev) => prev.filter((p) => !idSet.has(p.id)));
-  };
+  const deleteProjects = (ids: string[]) => deleteProjectsByIds(uid, ids);
 
   return (
-    <ProjectContext.Provider value={{ projects, addProject, updateProject, deleteProject, deleteProjects }}>
+    <ProjectContext.Provider value={{ projects, loading, addProject, updateProject, deleteProject, deleteProjects }}>
       {children}
     </ProjectContext.Provider>
   );
@@ -56,3 +65,4 @@ export function useProjectContext() {
   if (!ctx) throw new Error('useProjectContext must be used within ProjectProvider');
   return ctx;
 }
+

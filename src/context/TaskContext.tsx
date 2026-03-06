@@ -1,11 +1,18 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Task } from '../types';
-import { storageService } from '../services/storageService';
 import { generateId } from '../utils/generateId';
 import { todayISO } from '../utils/dateHelpers';
+import { useAuth } from './AuthContext';
+import {
+  subscribeToTasks,
+  saveTask,
+  deleteTaskById,
+  deleteTasksByProjectIds as fsDeleteTasksByProjectIds,
+} from '../services/firestoreService';
 
 interface TaskContextValue {
   tasks: Task[];
+  loading: boolean;
   selectedTaskId: string | null;
   setSelectedTaskId: (id: string | null) => void;
   addTask: (title: string, projectId?: string | null, dueDate?: string | null) => void;
@@ -18,12 +25,24 @@ interface TaskContextValue {
 const TaskContext = createContext<TaskContextValue | null>(null);
 
 export function TaskProvider({ children }: { children: React.ReactNode }) {
-  const [tasks, setTasks] = useState<Task[]>(() => storageService.loadTasks());
+  const { user } = useAuth();
+  const uid = user!.uid;
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  // Track selected separately to avoid closure issues in async calls
+  const selectedRef = useRef<string | null>(null);
+  selectedRef.current = selectedTaskId;
 
   useEffect(() => {
-    storageService.saveTasks(tasks);
-  }, [tasks]);
+    setLoading(true);
+    const unsub = subscribeToTasks(uid, (data) => {
+      setTasks(data);
+      setLoading(false);
+    });
+    return unsub;
+  }, [uid]);
 
   const addTask = (title: string, projectId: string | null = null, dueDate: string | null = null) => {
     const task: Task = {
@@ -36,36 +55,28 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       links: [],
       createdAt: new Date().toISOString(),
     };
-    setTasks((prev) => [task, ...prev]);
+    saveTask(uid, task);
   };
 
-  const updateTask = (updated: Task) => {
-    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-  };
+  const updateTask = (updated: Task) => saveTask(uid, updated);
 
   const deleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-    if (selectedTaskId === id) setSelectedTaskId(null);
+    if (selectedRef.current === id) setSelectedTaskId(null);
+    deleteTaskById(uid, id);
   };
 
   const deleteTasksByProjectIds = (projectIds: string[]) => {
-    const idSet = new Set(projectIds);
-    setTasks((prev) => {
-      const toDelete = new Set(prev.filter((t) => t.projectId && idSet.has(t.projectId)).map((t) => t.id));
-      if (selectedTaskId && toDelete.has(selectedTaskId)) setSelectedTaskId(null);
-      return prev.filter((t) => !t.projectId || !idSet.has(t.projectId));
-    });
+    fsDeleteTasksByProjectIds(uid, projectIds);
   };
 
   const toggleTask = (id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
+    const task = tasks.find((t) => t.id === id);
+    if (task) saveTask(uid, { ...task, completed: !task.completed });
   };
 
   return (
     <TaskContext.Provider
-      value={{ tasks, selectedTaskId, setSelectedTaskId, addTask, updateTask, deleteTask, deleteTasksByProjectIds, toggleTask }}
+      value={{ tasks, loading, selectedTaskId, setSelectedTaskId, addTask, updateTask, deleteTask, deleteTasksByProjectIds, toggleTask }}
     >
       {children}
     </TaskContext.Provider>
@@ -79,3 +90,4 @@ export function useTaskContext() {
 }
 
 export { todayISO };
+

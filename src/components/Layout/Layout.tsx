@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { useTasks } from '../../hooks/useTasks';
 import { useProjects } from '../../hooks/useProjects';
 import { ProjectList } from '../ProjectList/ProjectList';
@@ -18,6 +19,20 @@ const NAV_ITEMS = [
 
 export function Layout({ children }: Props) {
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [userMenuOpen]);
   const {
     tasks,
     todayTasks,
@@ -52,6 +67,39 @@ export function Layout({ children }: Props) {
   return (
     <div className={styles.app}>
       <nav className={styles.sidebar}>
+        {/* User block */}
+        <div className={styles.userBlock} ref={userMenuRef}>
+          <div className={styles.userBlockInner} onClick={() => setUserMenuOpen((v) => !v)}>
+            {user?.photoURL ? (
+              <img src={user.photoURL} alt="avatar" className={styles.userAvatar} referrerPolicy="no-referrer" />
+            ) : (
+              <div className={styles.userAvatarFallback}>
+                {(user?.displayName ?? user?.email ?? '?')[0].toUpperCase()}
+              </div>
+            )}
+            <div className={styles.userInfo}>
+              <span className={styles.userName}>
+                {user?.displayName ?? user?.email?.split('@')[0] ?? 'Пользователь'}
+              </span>
+              <span className={styles.userEmail}>{user?.email}</span>
+            </div>
+            <button className={styles.logoutBtn} onClick={(e) => { e.stopPropagation(); logout(); }} title="Выйти">
+              →
+            </button>
+          </div>
+          {userMenuOpen && (
+            <div className={styles.userMenu}>
+              <div className={styles.userMenuName}>
+                {user?.displayName ?? user?.email?.split('@')[0]}
+              </div>
+              <div className={styles.userMenuEmail}>{user?.email}</div>
+              <button className={styles.userMenuLogout} onClick={logout}>
+                🚪 Выйти
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Logo */}
         <div className={styles.logo}>
           <span className={styles.logoIcon}>📓</span>

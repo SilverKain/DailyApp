@@ -46,15 +46,3 @@ export const localStorageProvider: StorageProvider = {
   loadSettings: () => getItem<AppSettings>(KEYS.SETTINGS, DEFAULT_SETTINGS),
   saveSettings: (settings) => setItem(KEYS.SETTINGS, settings),
 };
-
-// Заглушка для будущего Firebase провайдера
-export const firebaseProvider: StorageProvider = {
-  loadTasks: () => [],
-  saveTasks: () => {},
-  loadProjects: () => [],
-  saveProjects: () => {},
-  loadNotes: () => [],
-  saveNotes: () => {},
-  loadSettings: () => DEFAULT_SETTINGS,
-  saveSettings: () => {},
-};

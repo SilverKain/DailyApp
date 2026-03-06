@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
@@ -23,24 +25,46 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Мобильные браузеры блокируют попапы — используем редирект.
+// Редирект проходит через workspaceapp-36f44.firebaseapp.com (authDomain),
+// поэтому /__/auth/handler существует и 404 не возникает.
+const isMobile = () =>
+  /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
-    return unsub;
+    // На мобильных после редиректа нужно сначала получить результат,
+    // и только потом подписаться на onAuthStateChanged.
+    // Если делать параллельно — onAuthStateChanged успевает выдать user=null
+    // и приложение показывает страницу входа до прихода реального пользователя.
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) setUser(result.user);
+      })
+      .catch(() => {/* тихо игнорируем — не было редиректа */})
+      .finally(() => {
+        onAuthStateChanged(auth, (u) => {
+          setUser(u);
+          setLoading(false);
+        });
+      });
   }, []);
 
   const signInWithGoogle = async () => {
     setError(null);
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     try {
-      await signInWithPopup(auth, provider);
+      if (isMobile()) {
+        await signInWithRedirect(auth, provider);
+        // Далее страница перезагрузится; результат придёт через getRedirectResult выше
+      } else {
+        await signInWithPopup(auth, provider);
+      }
     } catch (e: any) {
       setError(mapError(e.code));
     }

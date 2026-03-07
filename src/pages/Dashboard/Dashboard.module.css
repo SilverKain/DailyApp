@@ -56,6 +56,11 @@
   opacity: 0.7;
 }
 
+/* ── Mobile layout ─────────────────────── */
+.mobileWrapper {
+  display: none;
+}
+
 /* Tablet */
 @media (max-width: 1100px) {
   .dashboard {
@@ -65,22 +70,76 @@
 
 /* Mobile */
 @media (max-width: 768px) {
+  /* Скрываем десктоп-сетку */
   .dashboard {
-    grid-template-columns: 1fr;
-    height: auto;
-    overflow: visible;
+    display: none;
   }
 
-  .rightPanel {
-    position: static;
-    max-height: none;
-    border-left: none;
-    border-top: 1px solid var(--border);
+  /* Показываем мобильный wrapper */
+  .mobileWrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
   }
 
-  .centerCol {
+  /* Слайдер: 200% ширины, содержит 2 страницы по 50% */
+  .mobileSlider {
+    display: flex;
+    width: 200%;
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+
+  /* Каждая «страница» — 50% от слайдера = 100% экрана */
+  .mobilePage {
+    width: 50%;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+  }
+
+  .mobileSection {
+    border-bottom: 1px solid var(--border);
     padding: 12px;
-    height: auto;
-    overflow: visible;
+    background: var(--bg);
+  }
+
+  /* Индикаторные точки */
+  .mobilePageDots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 0 4px;
+  }
+
+  .mobileDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: background var(--transition), transform var(--transition);
+  }
+
+  .mobileDotActive {
+    background: var(--accent);
+    transform: scale(1.25);
+  }
+
+  /* Подсказка о свайпе */
+  .mobileSwipeHint {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    padding-bottom: 6px;
+    pointer-events: none;
+    user-select: none;
   }
 }
